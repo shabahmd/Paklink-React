@@ -1,0 +1,238 @@
+<context>
+Overview
+
+PakLink is a fast, lightweight social media app built for low-end Android/iOS devices in Pakistan. It provides a minimal yet rich experience with features like real-time chat, feeds, profiles, and notifications—all optimized for limited bandwidth (2G/3G) and older devices. Unlike bloated mainstream apps, PakLink delivers high performance, offline support, and modern UX using React Native (Expo) and Supabase for backend.
+Core Features
+1. Authentication
+
+    What it does: Phone/email + OTP-based login; Google/Apple sign-in.
+
+    Why it matters: Access control and personalization.
+
+    How: Supabase Auth with magic links and third-party OAuth integration.
+
+2. Home Feed
+
+    What it does: Infinite scroll of user-generated posts (text, image, video).
+
+    Why it matters: Primary user engagement loop.
+
+    How: Supabase Postgres with posts table and pagination via limit/offset.
+
+3. Profiles
+
+    What it does: Custom bios, images, follower system.
+
+    Why it matters: Social identity and personalization.
+
+    How: Supabase relational schema (users, follows, media tables).
+
+4. Real-Time Chat
+
+    What it does: 1-on-1 chat with image sharing and online status.
+
+    Why it matters: Retention and meaningful interaction.
+
+    How: Supabase Realtime Channels with messages table.
+
+5. Notifications
+
+    What it does: In-app and push alerts for social actions.
+
+    Why it matters: User retention through feedback.
+
+    How: Supabase notifications table + Expo Push Notifications.
+
+User Experience
+User Personas
+
+    Budget Android User (16–25): Low RAM, limited internet. Wants light, fast apps.
+
+    Content Sharer (18–30): Wants to post memes, selfies, or updates.
+
+    Observer (25–40): Scrolls silently, reacts occasionally.
+
+Key User Flows
+
+    Signup/Login → Onboarding → Feed
+
+    Tap Post → Like/Comment → Share
+
+    View Profile → Follow → Edit Profile
+
+    Chat → Send Message/Image → Continue Conversation
+
+    Get Notification → Tap → Engage with post or chat
+
+UI/UX Considerations
+
+    Minimal UI using NativeBase v3
+
+    RTL support for Urdu
+
+    Caching and lazy loading for smoother experience
+
+    Dark/light theme toggle (future enhancement)
+
+</context> <PRD>
+Technical Architecture
+System Components
+
+    Frontend: React Native + Expo
+
+    State Management: Zustand
+
+    Forms: Formik + Yup
+
+    Navigation: React Navigation v6
+
+    UI Library: NativeBase
+
+    Localization: i18next
+
+Backend & Database (Supabase)
+
+    Auth: Supabase Auth (magic links, OAuth, phone OTP)
+
+    Database: PostgreSQL (hosted by Supabase)
+
+    Storage: Supabase Storage for media
+
+    Realtime: Supabase Realtime Channels for messaging
+
+    RPC/Functions: Postgres functions for complex business logic
+
+    Push Notifications: Expo Notifications + Supabase triggers (via Edge Functions or webhooks)
+
+Data Models
+
+-- users
+id, username, bio, avatar_url, created_at
+
+-- posts
+id, user_id, text, media_url, type (text/image/video), created_at
+
+-- comments
+id, post_id, user_id, content, created_at
+
+-- messages
+id, sender_id, receiver_id, content, media_url, created_at
+
+-- follows
+follower_id, following_id, created_at
+
+-- notifications
+id, user_id, type, source_id, is_read, created_at
+
+APIs and Integration
+
+    Supabase JS SDK
+
+    RESTful or GraphQL layer (optional)
+
+    Expo OTA + EAS Build
+
+    Optional: LogRocket/Sentry for analytics and crash logging
+
+Development Roadmap
+Phase 1 – MVP
+
+    Auth (email/OTP)
+
+    Home Feed (text/image posts)
+
+    User profiles
+
+    Realtime 1:1 chat
+
+    Push notifications
+
+    Basic UI shell and navigation
+
+Phase 2 – Feature Expansion
+
+    Video post support
+
+    Follower/following system
+
+    In-app notification center
+
+    Commenting
+
+    Offline draft saving
+
+    Chat image upload and compression
+
+Phase 3 – Enhancement
+
+    Social login (Google, Apple)
+
+    User search + hashtag discovery
+
+    Moderation tools
+
+    Theme switching
+
+    Reactions + comment threads
+
+    Verified badges
+
+Logical Dependency Chain
+
+    User Auth
+
+        Required to gate content and personalize data
+
+    Navigation + App Shell
+
+        Required for screen-switching and modular structure
+
+    Feed + Post Upload
+
+        First major user-facing content experience
+
+    Profiles + Editing
+
+        Personal identity foundation
+
+    Chat System
+
+        Enables interpersonal engagement
+
+    Notifications
+
+        Re-engagement booster
+
+Each step is atomic and builds upon the last while keeping the MVP lean and launch-ready.
+Risks and Mitigations
+Risk	Mitigation
+Supabase Realtime scalability	Use Channels sparingly; fallback to polling if needed
+Mobile app crashes	Integrate error reporting (e.g., Sentry) early
+Network unreliability in rural Pakistan	Implement offline-first caching and sync logic
+Push notification delivery on Android	Use Expo’s FCM integration properly
+Auth complexity	Begin with OTP/email and layer on OAuth later
+Appendix
+
+    Research Insights:
+
+        70% of smartphones in Pakistan are sub-$150 Android devices
+
+        Average mobile data cap: ~2GB/month
+
+        Most-used apps: WhatsApp, TikTok, Facebook Lite
+
+    Design Guidelines:
+
+        Use skeleton loading, avoid high memory usage
+
+        Lazy-load images and video
+
+        All heavy features optional via flags
+
+    Future Technical Considerations:
+
+        Monetization via Supabase Row-Level Security + Stripe integration
+
+        CDN-based media delivery using Supabase Storage + Cloudflare
+
+        Role-based access via Supabase policies
