@@ -1,4 +1,3 @@
-
 <context>
 Overview
 
@@ -210,7 +209,7 @@ Risk	Mitigation
 Supabase Realtime scalability	Use Channels sparingly; fallback to polling if needed
 Mobile app crashes	Integrate error reporting (e.g., Sentry) early
 Network unreliability in rural Pakistan	Implement offline-first caching and sync logic
-Push notification delivery on Android	Use Expo’s FCM integration properly
+Push notification delivery on Android	Use Expo's FCM integration properly
 Auth complexity	Begin with OTP/email and layer on OAuth later
 Appendix
 
@@ -237,3 +236,4 @@ Appendix
         CDN-based media delivery using Supabase Storage + Cloudflare
 
         Role-based access via Supabase policies
+</rewritten_file> 
