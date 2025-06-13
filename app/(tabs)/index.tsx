@@ -1,87 +1,157 @@
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Link } from 'expo-router';
+import React from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PostCard } from '../../src/components/PostCard';
+import { usePosts } from '../../src/hooks/usePosts';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { useAuth } from '@/lib/AuthContext';
+export default function TabOneScreen() {
+  const insets = useSafeAreaInsets();
+  const { 
+    posts, 
+    isLoading, 
+    isError, 
+    refetch, 
+    isRefetching, 
+    hasNextPage, 
+    fetchNextPage, 
+    isFetchingNextPage 
+  } = usePosts();
 
-export default function HomeScreen() {
-  const router = useRouter();
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (!user) {
-      router.replace('/login');
+  const renderEmptyState = () => {
+    // This function remains the same.
+    if (isLoading) {
+      return (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" />
+        </View>
+      );
     }
-  }, [user]);
+    if (isError) {
+      return (
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Failed to load posts</Text>
+          <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyText}>No posts yet</Text>
+        <Text style={styles.emptySubtext}>Be the first to share something!</Text>
+      </View>
+    );
+  };
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    // FIX: The paddingBottom has been removed from this container View.
+    <View style={styles.container}>
+      <FlatList
+        data={posts}
+        renderItem={({ item }) => <PostCard post={item} />}
+        keyExtractor={(item) => item.id}
+        // FIX: The paddingBottom is now applied to the FlatList's content.
+        // This ensures the list items don't hide behind the tab bar,
+        // but it doesn't affect the floating button's position.
+        // We add extra padding to also clear the floating button itself.
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
+        ListEmptyComponent={renderEmptyState}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+        }
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => 
+          isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: 20 }} /> : null
+        }
+      />
+
+      {/* This floating action button (FAB) will now be visible. */}
+      <Link href="/create-post" asChild>
+        <TouchableOpacity 
+          style={[styles.fab, { bottom: insets.bottom + 16 }]}
+          accessibilityLabel="Create Post"
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={32} color="#fff" />
+        </TouchableOpacity>
+      </Link>
+    </View>
   );
 }
 
+// Styles are mostly the same, just a minor adjustment to listContent might be needed.
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
-  stepContainer: {
-    gap: 8,
+  listContent: {
+    paddingHorizontal: 16, // Use horizontal padding
+    paddingTop: 16,        // Use top padding
+    flexGrow: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff3b30',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#007aff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  emptySubtext: {
+    fontSize: 16,
+    color: '#666',
+  },
+  fab: {
     position: 'absolute',
+    right: 16,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    zIndex: 999, // <- 🔥 Add this
+    backgroundColor: '#2196F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
 });

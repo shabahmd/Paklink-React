@@ -1,10 +1,12 @@
 import { Text, View } from '@/components/ui/Themed';
 import { useAuth } from '@/lib/AuthContext';
-import { router } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
@@ -82,111 +84,114 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        {isPhoneLogin
-          ? showOtpInput
-            ? 'Enter OTP'
-            : 'Phone Login'
-          : isLogin
-          ? 'Login'
-          : 'Sign Up'}
-      </Text>
-
-      {isPhoneLogin ? (
-        <>
-          {!showOtpInput && (
-            <TextInput
-              style={styles.input}
-              placeholder="Phone Number (with country code)"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-          )}
-
-          {showOtpInput && (
-            <TextInput
-              style={styles.input}
-              placeholder="Enter OTP"
-              value={otp}
-              onChangeText={setOtp}
-              keyboardType="number-pad"
-              editable={!isLoading}
-              maxLength={6}
-            />
-          )}
-        </>
-      ) : (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!isLoading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!isLoading}
-          />
-        </>
-      )}
-
-      <TouchableOpacity
-        style={[styles.button, (!validateForm() || isLoading) && styles.buttonDisabled]}
-        onPress={handleAuth}
-        disabled={!validateForm() || isLoading}>
-        <Text style={styles.buttonText}>
-          {isLoading
-            ? 'Loading...'
-            : isPhoneLogin
+    <SafeAreaView style={{ flex: 1 }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.container}>
+        <Text style={styles.title}>
+          {isPhoneLogin
             ? showOtpInput
-              ? 'Verify OTP'
-              : 'Send OTP'
+              ? 'Enter OTP'
+              : 'Phone Login'
             : isLogin
             ? 'Login'
             : 'Sign Up'}
         </Text>
-      </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.switchButton} 
-        onPress={toggleAuthMode}
-        disabled={isLoading}>
-        <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
-          {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
-        </Text>
-      </TouchableOpacity>
+        {isPhoneLogin ? (
+          <>
+            {!showOtpInput && (
+              <TextInput
+                style={styles.input}
+                placeholder="Phone Number (with country code)"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+            )}
 
-      <TouchableOpacity 
-        style={styles.switchButton} 
-        onPress={togglePhoneLogin}
-        disabled={isLoading}>
-        <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
-          {isPhoneLogin
-            ? 'Use Email Instead'
-            : 'Login with Phone Number'}
-        </Text>
-      </TouchableOpacity>
+            {showOtpInput && (
+              <TextInput
+                style={styles.input}
+                placeholder="Enter OTP"
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                editable={!isLoading}
+                maxLength={6}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isLoading}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!isLoading}
+            />
+          </>
+        )}
 
-      <TouchableOpacity 
-        style={styles.switchButton} 
-        onPress={() => router.push('/forgot-password')}
-        disabled={isLoading}>
-        <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
-          Forgot Password?
-        </Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity
+          style={[styles.button, (!validateForm() || isLoading) && styles.buttonDisabled]}
+          onPress={handleAuth}
+          disabled={!validateForm() || isLoading}>
+          <Text style={styles.buttonText}>
+            {isLoading
+              ? 'Loading...'
+              : isPhoneLogin
+              ? showOtpInput
+                ? 'Verify OTP'
+                : 'Send OTP'
+              : isLogin
+              ? 'Login'
+              : 'Sign Up'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.switchButton} 
+          onPress={toggleAuthMode}
+          disabled={isLoading}>
+          <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
+            {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.switchButton} 
+          onPress={togglePhoneLogin}
+          disabled={isLoading}>
+          <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
+            {isPhoneLogin
+              ? 'Use Email Instead'
+              : 'Login with Phone Number'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.switchButton} 
+          onPress={() => router.push('/forgot-password')}
+          disabled={isLoading}>
+          <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
+            Forgot Password?
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
