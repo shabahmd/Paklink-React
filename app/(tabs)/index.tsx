@@ -12,40 +12,30 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PostCard } from '../../components/feed/PostCard';
-import { usePosts } from '../../hooks/usePosts';
+import { StatusUpdate } from '../../components/feed/StatusUpdate';
+import { useAuth } from '../../contexts/AuthContext';
+import { usePostsContext } from '../../contexts/posts-context';
+
+const DEFAULT_AVATAR_URL = 'https://via.placeholder.com/50';
 
 export default function TabOneScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { 
     posts, 
-    isLoading, 
-    isError, 
-    refetch, 
-    isRefetching, 
-    hasNextPage, 
-    fetchNextPage, 
-    isFetchingNextPage 
-  } = usePosts();
+    isLoading,
+    clearPosts
+  } = usePostsContext();
 
   const renderEmptyState = () => {
-    // This function remains the same.
     if (isLoading) {
       return (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color="#2196F3" />
         </View>
       );
     }
-    if (isError) {
-      return (
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Failed to load posts</Text>
-          <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+    
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.emptyText}>No posts yet</Text>
@@ -54,34 +44,24 @@ export default function TabOneScreen() {
     );
   };
 
+  const renderHeader = () => (
+    <StatusUpdate userAvatar={user?.email ? `https://ui-avatars.com/api/?name=${user.email.charAt(0)}` : DEFAULT_AVATAR_URL} />
+  );
+
   return (
-    // FIX: The paddingBottom has been removed from this container View.
     <View style={styles.container}>
       <FlatList
         data={posts}
         renderItem={({ item }) => <PostCard post={item} />}
         keyExtractor={(item) => item.id}
-        // FIX: The paddingBottom is now applied to the FlatList's content.
-        // This ensures the list items don't hide behind the tab bar,
-        // but it doesn't affect the floating button's position.
-        // We add extra padding to also clear the floating button itself.
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
+        ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmptyState}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-        }
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) {
-            fetchNextPage();
-          }
-        }}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={() => 
-          isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: 20 }} /> : null
+          <RefreshControl refreshing={isLoading} onRefresh={() => clearPosts()} />
         }
       />
 
-      {/* This floating action button (FAB) will now be visible. */}
       <Link href="/create-post" asChild>
         <TouchableOpacity 
           style={[styles.fab, { bottom: insets.bottom + 16 }]}
@@ -95,15 +75,13 @@ export default function TabOneScreen() {
   );
 }
 
-// Styles are mostly the same, just a minor adjustment to listContent might be needed.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
   listContent: {
-    paddingHorizontal: 16, // Use horizontal padding
-    paddingTop: 16,        // Use top padding
+    paddingTop: 0,
     flexGrow: 1,
   },
   centerContainer: {
@@ -111,6 +89,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
+    marginTop: 40,
   },
   errorText: {
     fontSize: 16,
@@ -142,7 +121,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    zIndex: 999, // <- 🔥 Add this
+    zIndex: 999,
     backgroundColor: '#2196F3',
     alignItems: 'center',
     justifyContent: 'center',

@@ -5,7 +5,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
@@ -16,8 +16,8 @@ import { useColorScheme } from '../hooks/useColorScheme';
 const queryClient = new QueryClient();
 
 export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary
+    // Catch any errors thrown by the Layout component.
+    ErrorBoundary
 } from 'expo-router';
 
 export const unstable_settings = {
@@ -81,9 +81,25 @@ function RootLayoutNav() {
 // This is the root component for the entire app.
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
+  const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+
+  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
+  useEffect(() => {
+    if (error) throw error;
+  }, [error]);
+
+  const onLayoutRootView = useCallback(async () => {
+    if (loaded) {
+      // Hide the splash screen after the fonts have loaded and the UI is ready.
+      await SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  useEffect(() => {
+    onLayoutRootView();
+  }, [onLayoutRootView]);
 
   // Don't render anything until the fonts are loaded.
   if (!loaded) {
@@ -92,7 +108,7 @@ export default function RootLayout() {
 
   // The order of providers is important.
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <QueryClientProvider client={queryClient}>
         <PostsProvider>
           <AuthProvider>
