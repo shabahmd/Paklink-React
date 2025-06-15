@@ -1,16 +1,11 @@
-import CreatePostScreen from '@/src/screens/CreatePostScreen';
 import { Stack } from 'expo-router';
 import React from 'react';
+import CreatePostScreen from '../screens/CreatePostScreen';
 
-export default function CreatePostRoute() {
+export default function CreatePostLayout() {
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'Create Post',
-          presentation: 'modal',
-        }}
-      />
+      <Stack.Screen options={{ title: 'Create Post' }} />
       <CreatePostScreen />
     </>
   );

@@ -1,196 +1,114 @@
-import { Text, View } from '@/components/ui/Themed';
-import { useAuth } from '@/lib/AuthContext';
-import { Stack, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signIn, signUp, skipLogin, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
-  const [phone, setPhone] = useState('');
-  const [isPhoneLogin, setIsPhoneLogin] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [showOtpInput, setShowOtpInput] = useState(false);
-  
-  const { signIn, signUp, signInWithPhone, verifyOTP, isLoading, error, isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/(tabs)');
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (error) {
-      Alert.alert('Authentication Error', error.message);
-    }
-  }, [error]);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   const handleAuth = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
     try {
-      if (isPhoneLogin) {
-        if (showOtpInput) {
-          await verifyOTP(phone, otp);
-        } else {
-          await signInWithPhone(phone);
-          setShowOtpInput(true);
-        }
+      if (isSignUp) {
+        await signUp(email, password);
       } else {
-        if (isLogin) {
-          await signIn(email, password);
-        } else {
-          await signUp(email, password);
-          Alert.alert(
-            'Verification Email Sent',
-            'Please check your email for a verification link before logging in.'
-          );
-          setIsLogin(true);
-        }
+        await signIn(email, password);
       }
+      router.replace('/(tabs)');
     } catch (error) {
-      // Error is already handled by the store and useEffect
-      console.error('Authentication error:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Authentication failed');
     }
   };
 
-  const toggleAuthMode = () => {
-    setIsLogin(!isLogin);
-    setIsPhoneLogin(false);
-    setShowOtpInput(false);
-    setEmail('');
-    setPassword('');
-  };
-
-  const togglePhoneLogin = () => {
-    setIsPhoneLogin(!isPhoneLogin);
-    setShowOtpInput(false);
-    setPhone('');
-    setOtp('');
-    setEmail('');
-    setPassword('');
-  };
-
-  const validateForm = () => {
-    if (isPhoneLogin) {
-      if (showOtpInput) {
-        return otp.length >= 6;
-      }
-      return phone.length >= 10;
+  const handleSkipLogin = async () => {
+    try {
+      await skipLogin();
+      router.replace('/(tabs)');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to skip login');
     }
-    return email.length > 0 && password.length >= 6;
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>
-          {isPhoneLogin
-            ? showOtpInput
-              ? 'Enter OTP'
-              : 'Phone Login'
-            : isLogin
-            ? 'Login'
-            : 'Sign Up'}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+        <Text style={styles.subtitle}>
+          {isSignUp ? 'Sign up to get started' : 'Sign in to continue'}
         </Text>
+      </View>
 
-        {isPhoneLogin ? (
-          <>
-            {!showOtpInput && (
-              <TextInput
-                style={styles.input}
-                placeholder="Phone Number (with country code)"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-            )}
-
-            {showOtpInput && (
-              <TextInput
-                style={styles.input}
-                placeholder="Enter OTP"
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="number-pad"
-                editable={!isLoading}
-                maxLength={6}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!isLoading}
-            />
-          </>
-        )}
+      <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#A0A0A0"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#A0A0A0"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
 
         <TouchableOpacity
-          style={[styles.button, (!validateForm() || isLoading) && styles.buttonDisabled]}
+          style={styles.button}
           onPress={handleAuth}
-          disabled={!validateForm() || isLoading}>
-          <Text style={styles.buttonText}>
-            {isLoading
-              ? 'Loading...'
-              : isPhoneLogin
-              ? showOtpInput
-                ? 'Verify OTP'
-                : 'Send OTP'
-              : isLogin
-              ? 'Login'
-              : 'Sign Up'}
-          </Text>
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.switchButton} 
-          onPress={toggleAuthMode}
-          disabled={isLoading}>
-          <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
-            {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.switchButton} 
-          onPress={togglePhoneLogin}
-          disabled={isLoading}>
-          <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
-            {isPhoneLogin
-              ? 'Use Email Instead'
-              : 'Login with Phone Number'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.switchButton} 
-          onPress={() => router.push('/forgot-password')}
-          disabled={isLoading}>
-          <Text style={[styles.switchText, isLoading && styles.textDisabled]}>
-            Forgot Password?
-          </Text>
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={handleSkipLogin}
+          disabled={isLoading}
+        >
+          <Text style={styles.skipButtonText}>Skip Login</Text>
         </TouchableOpacity>
       </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+        </Text>
+        <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
+          <Text style={styles.footerLink}>{isSignUp ? 'Sign In' : 'Sign Up'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Link href="/forgot-password" asChild>
+        <TouchableOpacity style={styles.forgotPassword}>
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
+      </Link>
     </SafeAreaView>
   );
 }
@@ -198,50 +116,82 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    marginTop: 40,
+    marginBottom: 40,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20,
+    color: '#333333',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666666',
+  },
+  form: {
+    marginBottom: 30,
   },
   input: {
-    width: '100%',
     height: 50,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#E0E0E0',
     borderRadius: 8,
-    marginBottom: 15,
-    paddingHorizontal: 15,
-    backgroundColor: '#fff',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#F8F8F8',
   },
   button: {
-    width: '100%',
     height: 50,
     backgroundColor: '#2196F3',
     borderRadius: 8,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
-  },
-  buttonDisabled: {
-    backgroundColor: '#B0BEC5',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  switchButton: {
-    marginTop: 20,
+  skipButton: {
+    height: 50,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  switchText: {
-    color: '#2196F3',
+  skipButtonText: {
+    color: '#666666',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  footerText: {
+    color: '#666666',
     fontSize: 14,
   },
-  textDisabled: {
-    color: '#B0BEC5',
+  footerLink: {
+    color: '#2196F3',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 5,
+  },
+  forgotPassword: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  forgotPasswordText: {
+    color: '#2196F3',
+    fontSize: 14,
   },
 }); 

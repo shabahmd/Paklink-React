@@ -1,65 +1,24 @@
-import { Text, View } from '@/components/ui/Themed';
-import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
-
-interface Profile {
-  id: string;
-  username: string | null;
-  full_name: string | null;
-  avatar_url: string | null;
-  updated_at: string | null;
-}
+import React from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      router.replace('../../login');
-      return;
-    }
-
-    const fetchProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-        } else {
-          setProfile(data);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [user]);
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      router.replace('../../login');
+      router.replace('/(auth)/login');
     } catch (error) {
       Alert.alert('Error signing out', (error as Error).message);
     }
   };
 
-  if (loading) {
+  if (!user) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={styles.title}>Not logged in</Text>
       </View>
     );
   }
@@ -67,37 +26,10 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Profile</Text>
-      
       <View style={styles.infoContainer}>
         <Text style={styles.label}>Email:</Text>
-        <Text style={styles.value}>{user?.email || 'No email'}</Text>
+        <Text style={styles.value}>{user.email}</Text>
       </View>
-
-      {user?.phone && (
-        <View style={styles.infoContainer}>
-          <Text style={styles.label}>Phone:</Text>
-          <Text style={styles.value}>{user.phone}</Text>
-        </View>
-      )}
-
-      {profile && (
-        <>
-          {profile.username && (
-            <View style={styles.infoContainer}>
-              <Text style={styles.label}>Username:</Text>
-              <Text style={styles.value}>{profile.username}</Text>
-            </View>
-          )}
-
-          {profile.full_name && (
-            <View style={styles.infoContainer}>
-              <Text style={styles.label}>Full Name:</Text>
-              <Text style={styles.value}>{profile.full_name}</Text>
-            </View>
-          )}
-        </>
-      )}
-
       <TouchableOpacity style={styles.button} onPress={handleSignOut}>
         <Text style={styles.buttonText}>Sign Out</Text>
       </TouchableOpacity>

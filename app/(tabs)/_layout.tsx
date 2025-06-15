@@ -1,72 +1,70 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs, useRouter } from 'expo-router';
-import React from 'react';
-import { Platform, TouchableOpacity } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Tabs } from 'expo-router';
+import React, { useEffect } from 'react';
+import { useColorScheme } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAuth } from '@/lib/AuthContext';
-import { usePathname } from 'expo-router';
+/**
+ * You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
+ */
+function TabBarIcon(props: {
+  name: React.ComponentProps<typeof FontAwesome>['name'];
+  color: string;
+}) {
+  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { session } = useAuth();
-  const pathname = usePathname();
-  const router = useRouter(); // Add router for the button
-  
-  // This redirect logic can be simplified or moved to the root layout, but it's okay here for now.
-  React.useEffect(() => {
-    if (!session && pathname !== '/login') {
-      router.replace('/(auth)/login');
-    }
-  }, [session, pathname, router]);
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Check for skipLogin flag
+  useEffect(() => {
+    const checkSkipLogin = async () => {
+      const skipLoginFlag = await AsyncStorage.getItem('skipLogin');
+      // If needed, you can do additional setup for skipped login users here
+    };
+    
+    checkSkipLogin();
+  }, []);
+
+  // Show loading indicator or redirect if not authenticated and not skipped login
+  if (isLoading) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // FIX: We now want to show the header by default.
-        headerShown: true, 
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            position: 'absolute',
-          },
-          default: {},
-        }),
+        tabBarActiveTintColor: '#2196F3',
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home Feed', // Set the title here
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-          // FIX: The "Create Post" button is now defined here, in the correct place.
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => router.push('/create-post')}
-              style={{ padding: 8, marginRight: 8 }}
-            >
-              <Ionicons name="add-circle" size={28} color={Colors[colorScheme ?? 'light'].tint} />
-            </TouchableOpacity>
-          ),
+          title: 'Home',
+          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          tabBarIcon: ({ color }) => <TabBarIcon name="bell" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />
     </Tabs>

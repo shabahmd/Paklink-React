@@ -11,8 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PostCard } from '../../src/components/PostCard';
-import { usePosts } from '../../src/hooks/usePosts';
+import { PostCard } from '../../components/feed/PostCard';
+import { usePosts } from '../../hooks/usePosts';
 
 export default function TabOneScreen() {
   const insets = useSafeAreaInsets();

@@ -1,17 +1,19 @@
 // (auth)/new-password.tsx
 
 import { Text, View } from '@/components/ui/Themed';
-import { supabase } from '@/lib/supabase';
+// import { supabase } from '@/lib/supabase';
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { useAuth } from '../../contexts/AuthContext';
 export default function NewPasswordScreen() {
+  const { email } = useLocalSearchParams<{ email: string }>();
+  const { setNewPassword, isLoading } = useAuth();
+  const router = useRouter();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   
   // Get URL parameters
@@ -51,53 +53,22 @@ export default function NewPasswordScreen() {
     };
   }, []);
 
-  const validatePasswords = () => {
+  const handleSetNewPassword = async () => {
     if (password.length < 8) {
       Alert.alert('Error', 'Password must be at least 8 characters long.');
-      return false;
+      return;
     }
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match.');
-      return false;
-    }
-    return true;
-  };
-
-  const handleSetNewPassword = async () => {
-    if (!validatePasswords()) return;
-    if (!token) {
-      Alert.alert('Error', 'No valid reset token found');
       return;
     }
-
-    setIsLoading(true);
     try {
-      // First verify the token
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'recovery'
-      });
-
-      if (verifyError) throw verifyError;
-
-      // Then update the password
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-
-      Alert.alert(
-        'Success!',
-        'Your password has been reset successfully.',
-        [{ text: 'OK', onPress: () => router.replace('/login') }]
-      );
+      await setNewPassword(email, password);
+      Alert.alert('Success', 'Password reset. You are now logged in.', [
+        { text: 'OK', onPress: () => router.replace('/(tabs)') }
+      ]);
     } catch (error) {
-      Alert.alert(
-        'Error',
-        error instanceof Error 
-          ? error.message 
-          : 'An error occurred while resetting your password.'
-      );
-    } finally {
-      setIsLoading(false);
+      Alert.alert('Error', (error as Error).message);
     }
   };
 

@@ -1,20 +1,21 @@
 import { Text, View } from '@/components/ui/Themed';
-import { useAuth } from '@/lib/AuthContext';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const { resetPassword, isLoading } = useAuth();
+  const router = useRouter();
 
   const handleResetPassword = async () => {
     try {
       await resetPassword(email);
       Alert.alert(
         'Reset Email Sent',
-        'Please check your email for a password reset link.',
-        [{ text: 'OK', onPress: () => router.replace('/login') }]
+        'If this were a real app, you would receive a reset link. For demo, proceed to set a new password.',
+        [{ text: 'OK', onPress: () => router.replace('/(auth)/new-password?email=' + encodeURIComponent(email)) }]
       );
     } catch (error) {
       Alert.alert('Error', (error as Error).message);
