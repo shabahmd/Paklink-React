@@ -1,6 +1,5 @@
-import React, { createContext, ReactNode, useContext } from 'react';
-import { usePosts } from '../hooks/usePosts';
-import { postImages, userAvatars } from '../src/utils/assets';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
 // Types
 export interface Post {
@@ -22,170 +21,141 @@ export interface Post {
 interface PostsState {
   posts: Post[];
   isLoading: boolean;
+  error: Error | null;
 }
 
-interface PostsContextProps extends PostsState {
-  addPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<void>;
+interface PostsContextType {
+  posts: Post[];
+  isLoading: boolean;
+  error: Error | null;
+  addPost: (post: Omit<Post, 'id' | 'createdAt' | 'likes' | 'comments' | 'shares' | 'likedByMe'>) => Promise<void>;
   removePost: (id: string) => Promise<void>;
-  clearPosts: () => Promise<void>;
   toggleLike: (id: string) => void;
-}
-
-const SEED_POSTS: Post[] = [
-  {
-    id: '1',
-    user: { id: 'user1', name: 'Alice', avatarUri: userAvatars.user2 },
-    content: 'Just shipped my first package with Paklink! Amazing service 📦',
-    imageUri: postImages.post1,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    likes: 12,
-    comments: 3,
-    shares: 1,
-    likedByMe: false,
-  },
-  {
-    id: '2',
-    user: { id: 'user2', name: 'Bob', avatarUri: userAvatars.user3 },
-    content: 'Great experience with international shipping through Paklink!',
-    imageUri: postImages.post2,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    likes: 8,
-    comments: 1,
-    shares: 0,
-    likedByMe: false,
-  },
-  {
-    id: '3',
-    user: { id: 'user3', name: 'Carol', avatarUri: userAvatars.user4 },
-    content: 'Loving the new app design! #paklink',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    likes: 5,
-    comments: 0,
-    shares: 0,
-    likedByMe: false,
-  },
-];
-
-const initialState: PostsState = {
-  posts: [],
-  isLoading: true,
-};
-
-// Actions
-const LOAD_POSTS = 'LOAD_POSTS';
-const ADD_POST = 'ADD_POST';
-const REMOVE_POST = 'REMOVE_POST';
-const CLEAR_POSTS = 'CLEAR_POSTS';
-const TOGGLE_LIKE = 'TOGGLE_LIKE';
-
-interface Action {
-  type: string;
-  payload?: any;
-}
-
-function postsReducer(state: PostsState, action: Action): PostsState {
-  switch (action.type) {
-    case LOAD_POSTS:
-      return { ...state, posts: action.payload, isLoading: false };
-    case ADD_POST:
-      return { ...state, posts: [action.payload, ...state.posts] };
-    case REMOVE_POST:
-      return { ...state, posts: state.posts.filter(p => p.id !== action.payload) };
-    case CLEAR_POSTS:
-      return { ...state, posts: [] };
-    case TOGGLE_LIKE:
-      return {
-        ...state,
-        posts: state.posts.map(post =>
-          post.id === action.payload
-            ? {
-                ...post,
-                likedByMe: !post.likedByMe,
-                likes: (post.likes || 0) + (post.likedByMe ? -1 : 1),
-              }
-            : post
-        ),
-      };
-    default:
-      return state;
-  }
-}
-
-// Create a context with the same shape as the usePosts hook
-type PostsContextType = ReturnType<typeof usePosts> & {
-  toggleLike: (id: string) => void;
-  addPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<void>;
-  removePost: (id: string) => Promise<void>;
   clearPosts: () => Promise<void>;
-};
+}
+
+// Remove SEED_POSTS since they reference lib folder assets
+const STORAGE_KEY = 'paklink_posts';
 
 const PostsContext = createContext<PostsContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'paklink_posts';
+function usePosts() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-export function PostsProvider({ children }: { children: ReactNode }) {
-  // Use the usePosts hook to get all the posts functionality
-  const postsData = usePosts();
-  
-  // Implement toggleLike function
-  const toggleLike = (id: string) => {
-    const updatedPosts = postsData.posts.map(post => 
-      post.id === id 
-        ? { 
-            ...post, 
+  // Load posts from storage on mount
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    try {
+      setIsLoading(true);
+      const storedPosts = await AsyncStorage.getItem(STORAGE_KEY);
+      if (storedPosts) {
+        setPosts(JSON.parse(storedPosts));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load posts'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const savePosts = async (newPosts: Post[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newPosts));
+    } catch (err) {
+      console.error('Failed to save posts:', err);
+      throw err;
+    }
+  };
+
+  const addPost = useCallback(async (post: Omit<Post, 'id' | 'createdAt' | 'likes' | 'comments' | 'shares' | 'likedByMe'>) => {
+    try {
+      const newPost: Post = {
+        ...post,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        likedByMe: false,
+      };
+
+      const updatedPosts = [newPost, ...posts];
+      setPosts(updatedPosts);
+      await savePosts(updatedPosts);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to add post'));
+      throw err;
+    }
+  }, [posts]);
+
+  const removePost = useCallback(async (id: string) => {
+    try {
+      const updatedPosts = posts.filter(post => post.id !== id);
+      setPosts(updatedPosts);
+      await savePosts(updatedPosts);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to remove post'));
+      throw err;
+    }
+  }, [posts]);
+
+  const toggleLike = useCallback((id: string) => {
+    const updatedPosts = posts.map(post =>
+      post.id === id
+        ? {
+            ...post,
             likedByMe: !post.likedByMe,
             likes: (post.likes || 0) + (post.likedByMe ? -1 : 1)
           }
         : post
     );
-    
-    console.log('Toggle like for post:', id);
-  };
-  
-  // Implement addPost function
-  const addPost = async (post: Omit<Post, 'id' | 'createdAt'>): Promise<void> => {
-    const newPost: Post = {
-      ...post,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      likedByMe: false,
-    };
-    console.log('Adding post:', newPost);
-    // In a real implementation, we would update the state here
-  };
-  
-  // Implement removePost function
-  const removePost = async (id: string): Promise<void> => {
-    console.log('Removing post:', id);
-    // In a real implementation, we would update the state here
-  };
-  
-  // Implement clearPosts function
-  const clearPosts = async (): Promise<void> => {
-    console.log('Clearing all posts');
-    // In a real implementation, we would update the state here
-  };
+    setPosts(updatedPosts);
+    savePosts(updatedPosts).catch(err => {
+      console.error('Failed to save like status:', err);
+      // Revert the change if save fails
+      setPosts(posts);
+    });
+  }, [posts]);
 
+  const clearPosts = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+      setPosts([]);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to clear posts'));
+      throw err;
+    }
+  }, []);
+
+  return {
+    posts,
+    isLoading,
+    error,
+    addPost,
+    removePost,
+    toggleLike,
+    clearPosts,
+  };
+}
+
+export function PostsProvider({ children }: { children: ReactNode }) {
+  const postsData = usePosts();
+  
   return (
-    <PostsContext.Provider value={{ 
-      ...postsData, 
-      toggleLike,
-      addPost,
-      removePost,
-      clearPosts
-    }}>
+    <PostsContext.Provider value={postsData}>
       {children}
     </PostsContext.Provider>
   );
 }
 
-// Custom hook to use the posts context
 export function usePostsContext() {
   const context = useContext(PostsContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('usePostsContext must be used within a PostsProvider');
   }
   return context;

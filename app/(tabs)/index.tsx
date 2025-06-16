@@ -1,77 +1,126 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
+  ImageSourcePropType,
   RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PostCard } from '../../components/feed/PostCard';
-import { StatusUpdate } from '../../components/feed/StatusUpdate';
-import { useAuth } from '../../contexts/AuthContext';
-import { usePostsContext } from '../../contexts/posts-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Post, usePostsContext } from '../../contexts/posts-context';
 
-const DEFAULT_AVATAR_URL = 'https://via.placeholder.com/50';
+function getImageSource(uri: string | number): ImageSourcePropType {
+  return typeof uri === 'string' ? { uri } : uri;
+}
 
-export default function TabOneScreen() {
-  const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const { 
-    posts, 
-    isLoading,
-    clearPosts
-  } = usePostsContext();
+export default function HomeScreen() {
+  const router = useRouter();
+  const { posts, isLoading, toggleLike } = usePostsContext();
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  const renderEmptyState = () => {
-    if (isLoading) {
-      return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#2196F3" />
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    // In a real app, you would fetch new posts here
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRefreshing(false);
+  }, []);
+
+  const renderPost = React.useCallback(({ item: post }: { item: Post }) => (
+    <View style={styles.post}>
+      <View style={styles.postHeader}>
+        <View style={styles.userInfo}>
+          <Image source={getImageSource(post.user.avatarUri)} style={styles.avatar} />
+          <Text style={styles.userName}>{post.user.name}</Text>
         </View>
-      );
-    }
-    
+        <TouchableOpacity>
+          <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
+        </TouchableOpacity>
+      </View>
+
+      {post.content && (
+        <Text style={styles.postContent}>{post.content}</Text>
+      )}
+
+      {post.imageUri && (
+        <Image source={getImageSource(post.imageUri)} style={styles.postImage} />
+      )}
+
+      <View style={styles.postActions}>
+        <TouchableOpacity 
+          style={styles.actionButton} 
+          onPress={() => toggleLike(post.id)}
+        >
+          <Ionicons 
+            name={post.likedByMe ? "heart" : "heart-outline"} 
+            size={24} 
+            color={post.likedByMe ? "#e74c3c" : "#666"} 
+          />
+          {(post.likes ?? 0) > 0 && (
+            <Text style={styles.actionText}>{post.likes}</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton}>
+          <Ionicons name="chatbubble-outline" size={24} color="#666" />
+          {(post.comments ?? 0) > 0 && (
+            <Text style={styles.actionText}>{post.comments}</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton}>
+          <Ionicons name="share-social-outline" size={24} color="#666" />
+          {(post.shares ?? 0) > 0 && (
+            <Text style={styles.actionText}>{post.shares}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  ), [toggleLike]);
+
+  if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>No posts yet</Text>
-        <Text style={styles.emptySubtext}>Be the first to share something!</Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
       </View>
     );
-  };
-
-  const renderHeader = () => (
-    <StatusUpdate userAvatar={user?.email ? `https://ui-avatars.com/api/?name=${user.email.charAt(0)}` : DEFAULT_AVATAR_URL} />
-  );
+  }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={posts}
-        renderItem={({ item }) => <PostCard post={item} />}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmptyState}
+        renderItem={renderPost}
+        keyExtractor={post => post.id}
+        contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={() => clearPosts()} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No posts yet</Text>
+            <TouchableOpacity 
+              style={styles.createPostButton}
+              onPress={() => router.push('/create-post')}
+            >
+              <Text style={styles.createPostButtonText}>Create your first post</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
-      <Link href="/create-post" asChild>
-        <TouchableOpacity 
-          style={[styles.fab, { bottom: insets.bottom + 16 }]}
-          accessibilityLabel="Create Post"
-          accessibilityRole="button"
-        >
-          <Ionicons name="add" size={32} color="#fff" />
-        </TouchableOpacity>
-      </Link>
-    </View>
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => router.push('/create-post')}
+      >
+        <Ionicons name="add" size={24} color="#fff" />
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 }
 
@@ -80,57 +129,108 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  listContent: {
-    paddingTop: 0,
-    flexGrow: 1,
+  content: {
+    padding: 16,
   },
-  centerContainer: {
+  loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    marginTop: 40,
   },
-  errorText: {
-    fontSize: 16,
-    color: '#ff3b30',
+  post: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
     marginBottom: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  retryButton: {
-    backgroundColor: '#007aff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
   },
-  emptySubtext: {
+  userName: {
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  postContent: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+  postImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  postActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+  },
+  actionText: {
+    marginLeft: 4,
+    fontSize: 14,
     color: '#666',
   },
   fab: {
     position: 'absolute',
     right: 16,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    zIndex: 999,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#2196F3',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 8,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    borderWidth: 2,
-    borderColor: '#fff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 16,
+  },
+  createPostButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+  },
+  createPostButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
