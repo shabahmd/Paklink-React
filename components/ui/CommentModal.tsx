@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,28 +13,31 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
-import { Comment, usePostsContext } from '../../contexts/posts-context';
+import { CommentData, usePostsContext } from '../../contexts/posts-context';
+import { Comment } from '../../services/supabase/comments';
+import CommentItem from './CommentItem';
 
 interface CommentModalProps {
   isVisible: boolean;
   onClose: () => void;
   postId: string;
+  postUserId: string;
   comments: Comment[];
 }
 
-export default function CommentModal({ isVisible, onClose, postId, comments }: CommentModalProps) {
+export default function CommentModal({ isVisible, onClose, postId, postUserId, comments }: CommentModalProps) {
   const { user, isAuthenticated } = useAuth();
   const { addComment } = usePostsContext();
   const [newComment, setNewComment] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [guestName, setGuestName] = useState('');
-  const [showGuestNameInput, setShowGuestNameInput] = useState(false);
-  const [pendingComment, setPendingComment] = useState<{content: string; imageUri?: string} | null>(null);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef(null);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -57,41 +60,24 @@ export default function CommentModal({ isVisible, onClose, postId, comments }: C
   };
 
   const handleSubmit = async () => {
-    if (!newComment.trim() && !selectedImage) {
+    if ((!newComment.trim() && !selectedImage) || !isAuthenticated) {
       Alert.alert('Error', 'Please enter a comment or select an image');
       return;
     }
 
-    // For guest users, store the comment and show name input
-    if (!isAuthenticated && !guestName) {
-      setPendingComment({
+    setIsSubmitting(true);
+    
+    try {
+      const commentData: CommentData = {
         content: newComment.trim(),
         imageUri: selectedImage || undefined
-      });
-      setShowGuestNameInput(true);
-      return;
-    }
-
-    await submitComment(newComment, selectedImage);
-  };
-
-  const submitComment = async (content: string, imageUri: string | null) => {
-    try {
-      setIsSubmitting(true);
-      const userName = isAuthenticated ? user?.email?.split('@')[0] || 'Guest' : guestName || 'Guest';
+      };
       
-      await addComment(postId, {
-        content: content.trim(),
-        imageUri: imageUri || undefined,
-        user: {
-          id: user?.email || 'guest',
-          name: userName,
-          avatarUri: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(userName),
-        },
-      });
+      await addComment(postId, commentData);
+      
       setNewComment('');
       setSelectedImage(null);
-      setPendingComment(null);
+      Alert.alert('Success', 'Your comment has been posted');
     } catch (error) {
       console.error('Failed to add comment:', error);
       Alert.alert('Error', 'Failed to add comment. Please try again.');
@@ -100,325 +86,289 @@ export default function CommentModal({ isVisible, onClose, postId, comments }: C
     }
   };
 
-  const handleGuestNameSubmit = async () => {
-    if (!guestName.trim()) {
-      Alert.alert('Error', 'Please enter your name');
-      return;
-    }
-    
-    setShowGuestNameInput(false);
-    
-    if (pendingComment) {
-      await submitComment(pendingComment.content, pendingComment.imageUri || null);
-    }
+  // Add missing handler functions
+  const handleDelete = (commentId: string) => {
+    Alert.alert('Delete Comment', 'This functionality is not implemented yet');
   };
 
-  const renderComment = ({ item: comment }: { item: Comment }) => (
-    <View style={styles.commentContainer}>
-      <View style={styles.commentHeader}>
-        <View style={styles.userInfo}>
-          <Image
-            source={{ uri: comment.user.avatarUri }}
-            style={styles.avatar}
-          />
-          <Text style={styles.username}>{comment.user.name}</Text>
-        </View>
-        <Text style={styles.timestamp}>
-          {new Date(comment.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-      {comment.content ? (
-        <Text style={styles.commentContent}>{comment.content}</Text>
-      ) : null}
-      {comment.imageUri ? (
-        <Image
-          source={{ uri: comment.imageUri }}
-          style={styles.commentImage}
-          resizeMode="cover"
-        />
-      ) : null}
-    </View>
-  );
+  const handleReply = (commentId: string, content: string) => {
+    Alert.alert('Reply to Comment', 'This functionality is not implemented yet');
+  };
+
+  const handleLike = (commentId: string) => {
+    Alert.alert('Like Comment', 'This functionality is not implemented yet');
+  };
 
   return (
-    <>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isVisible}
-        onRequestClose={onClose}
-      >
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isVisible}
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.safeAreaContainer} edges={['left', 'right', 'bottom']}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.overlay} />
+        </TouchableWithoutFeedback>
+        
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}
+          style={styles.keyboardAvoidingView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 40}
         >
-          <SafeAreaView style={styles.content}>
+          <View style={styles.modalContent}>
             <View style={styles.header}>
-              <Text style={styles.title}>Comments</Text>
+              <Text style={styles.headerTitle}>Comments</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
 
-            <FlatList
-              data={comments}
-              renderItem={renderComment}
-              keyExtractor={item => item.id}
-              contentContainerStyle={styles.commentsList}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
-              }
-            />
-
-            {selectedImage && (
-              <View style={styles.imagePreviewContainer}>
-                <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
-                <TouchableOpacity
-                  style={styles.removeImageButton}
-                  onPress={() => setSelectedImage(null)}
-                >
-                  <Ionicons name="close-circle" size={24} color="#fff" />
-                </TouchableOpacity>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0095F6" />
               </View>
+            ) : (
+              <FlatList
+                data={comments}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => (
+                  <CommentItem
+                    comment={item}
+                    currentUserId={user?.id}
+                    postUserId={postUserId}
+                    onDelete={handleDelete}
+                    onReply={handleReply}
+                    onLike={handleLike}
+                  />
+                )}
+                contentContainerStyle={styles.commentsList}
+                ListEmptyComponent={() => (
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No comments yet</Text>
+                    <Text style={styles.emptySubText}>Be the first to comment!</Text>
+                  </View>
+                )}
+              />
             )}
 
+            {/* Comment input section */}
             <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={newComment}
-                onChangeText={setNewComment}
-                placeholder="Write a comment..."
-                multiline
-                maxLength={500}
-              />
-              <TouchableOpacity
-                style={styles.imageButton}
-                onPress={pickImage}
-              >
-                <Ionicons name="image-outline" size={24} color="#007AFF" />
-              </TouchableOpacity>
-              {isSubmitting ? (
-                <ActivityIndicator style={styles.submitButton} />
-              ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.submitButton,
-                    (!newComment.trim() && !selectedImage) && styles.submitButtonDisabled,
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={(!newComment.trim() && !selectedImage) || isSubmitting}
-                >
-                  <Ionicons name="send" size={24} color="#007AFF" />
-                </TouchableOpacity>
+              {selectedImage && (
+                <View style={styles.selectedImageContainer}>
+                  <Image 
+                    source={{ uri: selectedImage }} 
+                    style={styles.selectedImage}
+                    resizeMode="cover" 
+                  />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => setSelectedImage(null)}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
               )}
-            </View>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showGuestNameInput}
-        onRequestClose={() => setShowGuestNameInput(false)}
-      >
-        <View style={styles.guestModalContainer}>
-          <View style={styles.guestModalContent}>
-            <Text style={styles.guestModalTitle}>Enter Your Name</Text>
-            <TextInput
-              style={styles.guestNameInput}
-              value={guestName}
-              onChangeText={setGuestName}
-              placeholder="Your name"
-              maxLength={30}
-              autoFocus
-            />
-            <View style={styles.guestModalButtons}>
-              <TouchableOpacity
-                style={[styles.guestModalButton, styles.guestModalButtonCancel]}
-                onPress={() => {
-                  setShowGuestNameInput(false);
-                  setPendingComment(null);
-                }}
-              >
-                <Text style={styles.guestModalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.guestModalButton, styles.guestModalButtonSubmit]}
-                onPress={handleGuestNameSubmit}
-              >
-                <Text style={styles.guestModalButtonText}>Submit</Text>
-              </TouchableOpacity>
+              <View style={styles.inputRow}>
+                <Image 
+                  source={{ uri: user?.email ? `https://ui-avatars.com/api/?name=${user.email.charAt(0)}` : 'https://ui-avatars.com/api/?name=User' }}
+                  style={styles.userAvatar} 
+                />
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    ref={inputRef}
+                    style={styles.input}
+                    placeholder="Add a comment..."
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    multiline
+                    maxLength={1000}
+                    editable={!isSubmitting}
+                  />
+                  <View style={styles.buttonContainer}>
+                    <TouchableOpacity
+                      style={styles.imagePickerButton}
+                      onPress={pickImage}
+                      disabled={isSubmitting}
+                    >
+                      <Ionicons name="image" size={24} color="#0095F6" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.sendButton,
+                        (!newComment.trim() && !selectedImage || !isAuthenticated) && styles.sendButtonDisabled
+                      ]}
+                      onPress={handleSubmit}
+                      disabled={(!newComment.trim() && !selectedImage) || isSubmitting || !isAuthenticated}
+                    >
+                      {isSubmitting ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Ionicons name="send" size={20} color="#fff" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeAreaContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  content: {
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  keyboardAvoidingView: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
     backgroundColor: '#fff',
-    marginTop: 50,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    height: '95%',
+    width: '100%',
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'android' ? 30 : 0, // Increased padding for Android
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
   },
   closeButton: {
-    padding: 8,
+    position: 'absolute',
+    right: 16,
+    top: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   commentsList: {
-    padding: 16,
+    paddingTop: 10,
+    paddingBottom: 60,
   },
-  commentContainer: {
-    marginBottom: 16,
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    padding: 20,
+    marginTop: 40,
   },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  avatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  username: {
-    fontWeight: '600',
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#666',
-  },
-  commentContent: {
+  emptySubText: {
     fontSize: 14,
-    lineHeight: 20,
-  },
-  commentImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
+    color: '#666',
     marginTop: 8,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    padding: 12,
+    paddingBottom: Platform.OS === 'android' ? 36 : 12, // Increased padding for Android
     backgroundColor: '#fff',
+    position: 'relative',
+    zIndex: 10,
   },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
-    backgroundColor: '#f1f3f4',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
+  selectedImageContainer: {
+    marginBottom: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    alignSelf: 'flex-start',
+    maxWidth: 150,
+    height: 150,
   },
-  imageButton: {
-    padding: 8,
-  },
-  submitButton: {
-    padding: 8,
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  imagePreviewContainer: {
-    padding: 16,
-    backgroundColor: '#f1f3f4',
-  },
-  imagePreview: {
+  selectedImage: {
     width: '100%',
-    height: 200,
+    height: '100%',
     borderRadius: 8,
   },
   removeImageButton: {
     position: 'absolute',
-    top: 24,
-    right: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     borderRadius: 12,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    marginTop: 16,
-  },
-  guestModalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: 24,
+    height: 24,
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  userAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  inputWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingRight: 80, // Space for buttons
+    maxHeight: 80,
+    fontSize: 14,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    right: 8,
+    bottom: 6,
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  guestModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '80%',
-    maxWidth: 400,
+  imagePickerButton: {
+    marginRight: 8,
+    padding: 4,
   },
-  guestModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
+  sendButton: {
+    backgroundColor: '#0095F6',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  guestNameInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  guestModalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  guestModalButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  guestModalButtonCancel: {
-    backgroundColor: '#ddd',
-  },
-  guestModalButtonSubmit: {
-    backgroundColor: '#007AFF',
-  },
-  guestModalButtonText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: '600',
+  sendButtonDisabled: {
+    backgroundColor: '#ccc',
   },
 }); 

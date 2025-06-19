@@ -3,14 +3,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,10 +48,10 @@ export default function CreatePostScreen() {
         return;
       }
       
-      if (!postContent.trim()) {
-        Alert.alert('Error', 'Please enter some content for your post');
-        return;
-      }
+    if (!postContent.trim()) {
+      Alert.alert('Error', 'Please enter some content for your post');
+      return;
+    }
 
       setIsSubmitting(true);
       const newPost = await addPost({

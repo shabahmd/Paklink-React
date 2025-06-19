@@ -14,6 +14,7 @@ export type Post = {
     username: string;
     avatar_url: string;
   };
+  comment_count: number;
 };
 
 export const fetchPosts = async (): Promise<Post[]> => {
@@ -25,7 +26,9 @@ export const fetchPosts = async (): Promise<Post[]> => {
         id,
         username,
         avatar_url
-      )
+      ),
+      comment_count,
+      comments:comments (count)
     `)
     .order('created_at', { ascending: false });
 

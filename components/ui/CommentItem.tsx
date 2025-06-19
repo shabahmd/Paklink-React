@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Comment } from '../../services/supabase/comments';
@@ -10,7 +9,7 @@ interface CommentItemProps {
   currentUserId?: string;
   postUserId?: string;
   onDelete: (commentId: string) => void;
-  onReply: (commentId: string, content: string, imageUri?: string) => void;
+  onReply: (commentId: string, content: string) => void;
   onLike: (commentId: string) => void;
   depth?: number;
   addComment?: boolean;
@@ -46,7 +45,6 @@ export default function CommentItem({
 }: CommentItemProps) {
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState('');
-  const [replyImage, setReplyImage] = useState<string | null>(null);
   const canDelete = currentUserId && (currentUserId === comment.user_id || currentUserId === postUserId);
   const maxDepth = 3; // Maximum nesting level for replies
 
@@ -63,24 +61,10 @@ export default function CommentItem({
   const likesCount = getLikesCount();
 
   const handleReplySubmit = () => {
-    if (replyText.trim() || replyImage) {
-      onReply(comment.id, replyText.trim(), replyImage || undefined);
+    if (replyText.trim()) {
+      onReply(comment.id, replyText.trim());
       setReplyText('');
-      setReplyImage(null);
       setIsReplying(false);
-    }
-  };
-
-  const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setReplyImage(result.assets[0].uri);
     }
   };
 
@@ -90,7 +74,7 @@ export default function CommentItem({
       <View style={[
         styles.commentContainer,
         depth > 0 && styles.indentedComment,
-        commentContainer,
+        commentContainer
       ]}>
         {/* User Avatar */}
         <Image
@@ -102,7 +86,7 @@ export default function CommentItem({
         <View style={[styles.contentContainer, commentContent]}>
           {/* Comment Bubble */}
           <View style={styles.commentBubble}>
-            {/* Header with username (if provided) */}
+            {/* Username */}
             <View style={[styles.userInfoContainer, userInfo, commentHeader]}>
               <Text style={styles.username}>
                 {username || comment.user?.username || 'Anonymous'}
@@ -171,18 +155,7 @@ export default function CommentItem({
       {/* Reply Input (conditionally rendered) */}
       {isReplying && (
         <View style={styles.replyInputContainer}>
-          {replyImage && (
-            <View style={styles.replyImageContainer}>
-              <Image source={{ uri: replyImage }} style={styles.replyImage} />
-              <TouchableOpacity style={styles.removeReplyImageButton} onPress={() => setReplyImage(null)}>
-                <Ionicons name="close-circle" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )}
           <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
-              <Ionicons name="image-outline" size={22} color="#65676b" />
-            </TouchableOpacity>
             <TextInput
               style={styles.input}
               placeholder="Write a reply..."
@@ -193,9 +166,9 @@ export default function CommentItem({
               autoFocus
             />
             <TouchableOpacity
-              style={[styles.sendButton, (!replyText.trim() && !replyImage) && styles.sendButtonDisabled]}
+              style={[styles.sendButton, !replyText.trim() && styles.sendButtonDisabled]}
               onPress={handleReplySubmit}
-              disabled={!replyText.trim() && !replyImage}
+              disabled={!replyText.trim()}
             >
               <Ionicons name="send" size={16} color="#fff" />
             </TouchableOpacity>
@@ -262,10 +235,9 @@ const styles = StyleSheet.create({
   },
   commentImage: {
     width: '100%',
-    height: 200,
+    height: 150,
     borderRadius: 12,
     marginTop: 8,
-    backgroundColor: '#f0f2f5',
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -279,69 +251,50 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   actionButton: {
-    marginRight: 12,
+    marginRight: 16,
   },
   actionText: {
     fontSize: 12,
-    color: '#65676b',
     fontWeight: '600',
+    color: '#65676b',
   },
   actionTextActive: {
-    color: '#2078f4',
+    color: '#0095F6',
   },
   deleteText: {
     fontSize: 12,
-    color: '#e74c3c',
     fontWeight: '600',
+    color: '#FF3B30',
   },
   replyInputContainer: {
-    marginLeft: 52, // Indent to align with comment content
-    marginVertical: 8,
-    backgroundColor: '#f0f2f5',
-    borderRadius: 18,
-    padding: 8,
+    marginLeft: 48,
+    marginTop: 4,
+    marginBottom: 8,
+    marginRight: 16,
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   input: {
     flex: 1,
+    backgroundColor: '#f0f2f5',
+    borderRadius: 18,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    maxHeight: 80,
+    maxHeight: 120,
+    fontSize: 14,
   },
   sendButton: {
-    backgroundColor: '#0078ff',
-    borderRadius: 16,
-    width: 32,
-    height: 32,
+    backgroundColor: '#0095F6',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
   sendButtonDisabled: {
-    backgroundColor: '#a0c8f0',
-  },
-  imagePickerButton: {
-    padding: 4,
-  },
-  replyImageContainer: {
-    position: 'relative',
-    marginBottom: 8,
-    alignSelf: 'flex-start',
-  },
-  replyImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  removeReplyImageButton: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 12,
+    backgroundColor: '#cccccc',
   },
 }); 
