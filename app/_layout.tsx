@@ -16,8 +16,8 @@ import { useColorScheme } from '../hooks/useColorScheme';
 const queryClient = new QueryClient();
 
 export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary
+    // Catch any errors thrown by the Layout component.
+    ErrorBoundary
 } from 'expo-router';
 
 export const unstable_settings = {
@@ -73,6 +73,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="create-post" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="comments" options={{ headerShown: true }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

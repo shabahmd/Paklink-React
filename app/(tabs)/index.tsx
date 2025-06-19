@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  ImageSourcePropType,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    ImageSourcePropType,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Post, usePostsContext } from '../../contexts/posts-context';
@@ -66,7 +66,19 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            console.log('[DEBUG] Comment button pressed in HomeScreen');
+            router.push({
+              pathname: '/comments',
+              params: {
+                postId: post.id,
+                postUserId: post.user.id,
+              },
+            });
+          }}
+        >
           <Ionicons name="chatbubble-outline" size={24} color="#666" />
           {(post.comments ?? 0) > 0 && (
             <Text style={styles.actionText}>{post.comments}</Text>
@@ -81,7 +93,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
     </View>
-  ), [toggleLike]);
+  ), [toggleLike, router]);
 
   if (isLoading) {
     return (

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
+import 'react-native-get-random-values';
 import { Post } from '../contexts/posts-context';
 
 // Mock data for posts
 const mockPosts: Post[] = [
   {
-    id: '1',
+    id: '550e8400-e29b-41d4-a716-446655440000',
     user: {
-      id: 'user1',
+      id: '550e8400-e29b-41d4-a716-446655440001',
       name: 'John Doe',
       avatarUri: 'https://randomuser.me/api/portraits/men/32.jpg',
     },
@@ -19,22 +20,22 @@ const mockPosts: Post[] = [
     likedByMe: false,
   },
   {
-    id: '2',
+    id: '550e8400-e29b-41d4-a716-446655440002',
     user: {
-      id: 'user2',
+      id: '550e8400-e29b-41d4-a716-446655440003',
       name: 'Jane Smith',
       avatarUri: 'https://randomuser.me/api/portraits/women/44.jpg',
     },
-    content: 'Beautiful day at the beach! 🏖️ #weekend #relax',
-    imageUri: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2073',
+    content: 'Beautiful sunset at the beach today! 🌅',
+    imageUri: 'https://images.unsplash.com/photo-1616036740257-9449ea1f6605?q=80&w=1974',
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-    likes: 56,
-    comments: 12,
-    shares: 4,
-    likedByMe: false,
+    likes: 42,
+    comments: 8,
+    shares: 3,
+    likedByMe: true,
   },
   {
-    id: '3',
+    id: '123e4567-e89b-12d3-a456-426614174002',
     user: {
       id: 'user3',
       name: 'Alex Johnson',
@@ -48,7 +49,7 @@ const mockPosts: Post[] = [
     likedByMe: false,
   },
   {
-    id: '4',
+    id: '123e4567-e89b-12d3-a456-426614174003',
     user: {
       id: 'user4',
       name: 'Sarah Williams',

@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Post, usePostsContext } from '../../contexts/posts-context';
@@ -8,11 +9,28 @@ interface PostCardProps {
 
 export function PostCard({ post }: PostCardProps) {
   const { toggleLike } = usePostsContext();
+  const router = useRouter();
 
   // Format the timestamp
   const formatTimestamp = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleCommentPress = () => {
+    console.log('[DEBUG] Comment button pressed');
+    console.log('[DEBUG] Navigating to comments with params:', {
+      postId: post.id,
+      postUserId: post.user.id,
+    });
+    
+    router.push({
+      pathname: '/comments',
+      params: {
+        postId: post.id,
+        postUserId: post.user.id,
+      },
+    });
   };
 
   return (
@@ -44,7 +62,10 @@ export function PostCard({ post }: PostCardProps) {
         >
           <Text>{post.likedByMe ? '❤️' : '👍'} {post.likes || 0}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={handleCommentPress}
+        >
           <Text>💬 {post.comments || 0}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>

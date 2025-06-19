@@ -1,7 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { AuthChangeEvent, createClient, Session } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import 'react-native-url-polyfill/auto';
+import { getAuthRedirectUrl } from '../../utils/supabase';
 
 // --- Create a Storage Adapter for Supabase using expo-secure-store ---
 const ExpoSecureStoreAdapter = {
@@ -30,8 +32,37 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: ExpoSecureStoreAdapter,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
   },
+});
+
+// Set up auth state change handler
+supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+  if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+    console.log('Auth state changed:', event);
+  }
+});
+
+// Initialize URL handling for auth
+Linking.addEventListener('url', async ({ url }) => {
+  const urlObj = new URL(url);
+  const searchParams = new URLSearchParams(urlObj.search);
+  const accessToken = searchParams.get('access_token');
+  const refreshToken = searchParams.get('refresh_token');
+  
+  if (accessToken && refreshToken) {
+    const { data: { session }, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    
+    if (error) {
+      console.error('Error setting session:', error.message);
+    } else {
+      console.log('Session set successfully:', session);
+    }
+  }
 });
 
 // --- Types ---
@@ -45,9 +76,13 @@ export type Profile = {
 
 // --- Auth Service Functions ---
 export const signUpWithEmail = async (email: string, password: string) => {
+  const redirectTo = getAuthRedirectUrl();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: redirectTo,
+    },
   });
   if (error) throw error;
   return data;
@@ -86,7 +121,10 @@ export const signOut = async () => {
 };
 
 export const resetPassword = async (email: string) => {
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const redirectTo = getAuthRedirectUrl();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
   if (error) throw error;
 };
 

@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { usePostsContext } from '../contexts/posts-context';
+import { supabase } from '../services/supabase/supabase';
 
 export default function CreatePostScreen() {
   const router = useRouter();
@@ -38,14 +39,22 @@ export default function CreatePostScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!postContent.trim()) {
-      Alert.alert('Error', 'Please enter some content for your post');
-      return;
-    }
-
     try {
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        Alert.alert('Error', 'You must be logged in to create a post');
+        return;
+      }
+      
+      if (!postContent.trim()) {
+        Alert.alert('Error', 'Please enter some content for your post');
+        return;
+      }
+
       setIsSubmitting(true);
-      await addPost({
+      const newPost = await addPost({
         content: postContent.trim(),
         imageUri,
         user: {
@@ -54,6 +63,7 @@ export default function CreatePostScreen() {
           avatarUri: 'https://ui-avatars.com/api/?name=' + (user?.email?.split('@')[0] || 'A'),
         },
       });
+      console.log('[DEBUG] Created post:', newPost);
       router.back();
     } catch (error) {
       console.error('Failed to create post:', error);

@@ -21,7 +21,8 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.paklink.app",
       associatedDomains: [
-        "applinks:paklink.app"
+        "applinks:paklink.app",
+        "applinks:localhost:3000"
       ]
     },
     android: {
@@ -39,6 +40,17 @@ export default {
               scheme: "paklink",
               host: "*",
               pathPrefix: "/"
+            },
+            {
+              scheme: "http",
+              host: "localhost",
+              port: "3000",
+              pathPrefix: "/"
+            },
+            {
+              scheme: "https",
+              host: "paklink.app",
+              pathPrefix: "/"
             }
           ],
           category: ["BROWSABLE", "DEFAULT"]
@@ -55,7 +67,7 @@ export default {
         projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID
       }
     },
-    scheme: "paklink",
+    scheme: ["paklink", "exp+paklink"],
     plugins: [
       [
         "expo-router",

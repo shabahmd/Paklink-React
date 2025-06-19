@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../services/supabase/supabase';
 
 // Mock session type
 export interface MockSession {
@@ -7,7 +7,10 @@ export interface MockSession {
 }
 
 export interface UserSession {
+  id: string;
   email: string;
+  username?: string;
+  avatar_url?: string;
 }
 
 interface AuthContextProps {
@@ -15,11 +18,10 @@ interface AuthContextProps {
   isLoading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   setNewPassword: (email: string, newPassword: string) => Promise<void>;
-  skipLogin: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -29,56 +31,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for user in AsyncStorage
-    const checkUser = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Check for skipLogin flag
-        const skipLoginFlag = await AsyncStorage.getItem('skipLogin');
-        if (skipLoginFlag === 'true') {
-          // Create a guest user
-          setUser({ email: 'guest@example.com' });
-          return;
-        }
-        
-        // Check for stored user
-        const storedUser = await AsyncStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error('Failed to load user from storage:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     checkUser();
   }, []);
+
+  const checkUser = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      
+      if (supabaseUser) {
+        // Fetch user profile data
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', supabaseUser.id)
+          .single();
+
+        setUser({
+          id: supabaseUser.id,
+          email: supabaseUser.email!,
+          username: profile?.username,
+          avatar_url: profile?.avatar_url,
+        });
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Error checking user session:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      
-      // Retrieve stored users
-      const storedUsers = await AsyncStorage.getItem('users');
-      const users = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      // Find user with matching email and password
-      const foundUser = users.find((u: any) => 
-        u.email === email && u.password === password
-      );
-      
-      if (!foundUser) {
-        throw new Error('Invalid email or password');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Fetch user profile data
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', data.user.id)
+          .single();
+
+        setUser({
+          id: data.user.id,
+          email: data.user.email!,
+          username: profile?.username,
+          avatar_url: profile?.avatar_url,
+        });
       }
-      
-      // Store logged in user (without password)
-      const userToStore = { email: foundUser.email };
-      await AsyncStorage.setItem('user', JSON.stringify(userToStore));
-      setUser(userToStore);
-      
     } catch (error) {
       console.error('Sign in failed:', error);
       throw error;
@@ -87,31 +97,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, username: string) => {
     try {
       setIsLoading(true);
-      
-      // Retrieve stored users
-      const storedUsers = await AsyncStorage.getItem('users');
-      const users = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      // Check if user already exists
-      if (users.some((u: any) => u.email === email)) {
-        throw new Error('User already exists');
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Create user profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              username,
+              email: data.user.email,
+              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}`,
+            },
+          ]);
+
+        if (profileError) throw profileError;
+
+        setUser({
+          id: data.user.id,
+          email: data.user.email!,
+          username,
+          avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}`,
+        });
       }
-      
-      // Add new user
-      const newUser = { email, password };
-      users.push(newUser);
-      
-      // Save updated users list
-      await AsyncStorage.setItem('users', JSON.stringify(users));
-      
-      // Store logged in user (without password)
-      const userToStore = { email };
-      await AsyncStorage.setItem('user', JSON.stringify(userToStore));
-      setUser(userToStore);
-      
     } catch (error) {
       console.error('Sign up failed:', error);
       throw error;
@@ -123,54 +140,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setIsLoading(true);
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('skipLogin');
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       setUser(null);
     } catch (error) {
       console.error('Sign out failed:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
   const resetPassword = async (email: string) => {
-    setIsLoading(true);
-    const stored = await AsyncStorage.getItem('user');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.email === email) {
-        // In a real app, you'd send an email. Here, just simulate success.
-        setIsLoading(false);
-        return;
-      }
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Password reset failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-    throw new Error('No user found with that email.');
   };
 
   const setNewPassword = async (email: string, newPassword: string) => {
-    setIsLoading(true);
-    const stored = await AsyncStorage.getItem('user');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.email === email) {
-        await AsyncStorage.setItem('user', JSON.stringify({ email, password: newPassword }));
-        setUser({ email });
-        setIsLoading(false);
-        return;
-      }
-    }
-    setIsLoading(false);
-    throw new Error('No user found with that email.');
-  };
-
-  const skipLogin = async () => {
     try {
       setIsLoading(true);
-      await AsyncStorage.setItem('skipLogin', 'true');
-      setUser({ email: 'guest@example.com' });
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) throw error;
     } catch (error) {
-      console.error('Skip login failed:', error);
+      console.error('Password update failed:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -187,7 +190,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         resetPassword,
         setNewPassword,
-        skipLogin,
       }}
     >
       {children}

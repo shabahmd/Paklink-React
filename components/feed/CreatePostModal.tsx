@@ -28,20 +28,26 @@ export function CreatePostModal({ visible, onClose }: CreatePostModalProps) {
 
   async function handleSubmit() {
     if (!content.trim() && !imageUri) return;
-    setIsSubmitting(true);
-    await addPost({
-      user: {
-        id: 'me',
-        name: 'You',
-        avatarUri: 'https://i.pravatar.cc/150?img=0',
-      },
-      content: content.trim(),
-      imageUri,
-    });
-    setContent('');
-    setImageUri(undefined);
-    setIsSubmitting(false);
-    onClose();
+    try {
+      setIsSubmitting(true);
+      const newPost = await addPost({
+        user: {
+          id: 'me',
+          name: 'You',
+          avatarUri: 'https://i.pravatar.cc/150?img=0',
+        },
+        content: content.trim(),
+        imageUri,
+      });
+      console.log('[DEBUG] Created post:', newPost);
+      setContent('');
+      setImageUri(undefined);
+      onClose();
+    } catch (error) {
+      console.error('Error creating post:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

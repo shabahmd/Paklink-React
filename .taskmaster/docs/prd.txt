@@ -236,4 +236,49 @@ Appendix
         CDN-based media delivery using Supabase Storage + Cloudflare
 
         Role-based access via Supabase policies
-</rewritten_file> 
+</rewritten_file>
+
+Feature: Implement Comment System for Post Details Screen
+
+Labels: feature, enhancement, database, ui
+
+Description:
+This feature involves building a complete comment system for the social media app. When a user taps on a post, they should be taken to a dedicated "Post Details" screen where they can view the post, see all associated comments, create new comments, and delete comments where appropriate. The implementation should follow a "Do-It-Yourself" (DIY) approach using fundamental React Native components and Supabase for the backend.
+
+Technical Requirements:
+
+1. Data Layer (Supabase Service):
+- Implement fetchPostDetails(postID) to fetch a single post with associated comments and user profiles
+- Create createComment(commentData) for inserting new comments
+- Add removeComment(commentID) for deleting comments
+- Comments should be ordered by created_at in descending order
+
+2. UI Layer (React Native Components):
+- Create PostDetails.tsx screen with ScrollView for post and comments
+- Implement Comment List with empty state message
+- Build CommentItem.tsx component for individual comments
+- Add Comment Input with TextInput and Send button
+- Handle comment deletion based on user permissions
+
+3. Real-Time Functionality:
+- Set up Supabase Realtime subscription for comments
+- Filter subscription by post_id
+- Update UI instantly when new comments are added
+- Handle comment deletion in real-time
+
+Acceptance Criteria:
+- Users can navigate to PostDetails screen from any post
+- PostDetails shows post content and all comments
+- Comments are displayed newest first
+- Users can add new comments via text input
+- New comments appear instantly without refresh
+- Users can delete their own comments
+- Post owners can delete any comment
+- Delete actions update both UI and database
+- Empty state shows "Be the first to comment"
+
+Technical Stack:
+- React Native for UI components
+- Supabase for database and real-time functionality
+- TypeScript for type safety
+- React Navigation for screen management 
